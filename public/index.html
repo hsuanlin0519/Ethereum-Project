@@ -1,82 +1,85 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <title>Final Project: Defi</title>
-    <style>
+    <link rel="stylesheet" type="text/css" href="FinalProject.css" media="screen" />
 
-        .flex {
-            display: flex;
-        }
 
-        .item {
-            flex: 1;
-            padding: 2rem;
-        }
-    </style>
-    
 
 </head>
-
 <body>
-    <div class="flex">
-        <div class="item">
-            <hr>
-            <h3>帳戶登入</h3>
-            <input id="loginaccount" type="text" style="font-size:12px" placeholder="請輸入帳戶地址(Address)"></input>
-            <br>
-            <input id="loginpassword" type="text" style="font-size:12px" placeholder="請輸入帳戶私鑰(Private Key)" ></input>
-            <button id="login">登入</button>
-            
-            <hr>
-            <h3 id="accountStatus">帳戶狀態</h3>
-            <h5 id="ethBalance">以太帳戶餘額 (ETH): </h5>
-            <h5 id="accountTokenBalance">Token帳戶餘額: </h5>
-            <h5 id="tokenBalance" style="color: red;">合約Token 餘額: </h5>
+    <div class="container">
+        <div class="gfx">
+            <span></span>
+        </div>
+
+        <div class="top">
+            <div class="navigation">
+                <a id="mainpage">首頁</a>
+                <a id="loginpage">我要登入</a>
+                <a id="uploadpage">我要上架商品</a>
+
+            </div>
+
+            <div class="pattern">
+                <span></span>
+            </div>
+
+            <div class="header">
+                <h1 id="accountStatus">帳戶狀態</h1>
+                <p id="ethBalance" style="color black;">以太帳戶餘額 (ETH): </p>
+                <p id="accountTokenBalance" style="color black;">Token帳戶餘額: </p>
+                <br>
+                <button id="update">更新帳戶餘額</button>
+            </div>
+            <div class="pattern"><span></span></div>
+        </div>
 
 
-            <hr>
-            <h3 id="updateCoin">更新餘額</h3>
-            <button id="update">執行</button>
+        <div class="content">
+            <div class="item">
+                
 
-            <hr>
-            <h3>上架商品</h3>
-            <input id="insertproductInfo" type="text" placeholder="請輸入商品標題"></input>
-            <input id="insertproductName" type="text" placeholder="請輸入商品名稱"></input>
-            <input id="insertID" type="text" placeholder="請輸入遊戲ID"></input>
-            <input id="insertPrice" type="number" placeholder="請輸入商品價格"></input>
-            <button id="upload">上架</button>
-            <h5 id="uploadstatus" style="color: blue;">上架狀態: </h5>
+                <center>
+                    <div class="products">
+                        <h1>商品列表</h1>
+                        所有商品<select id="allproducts"></select>
+                        <b id="selectinfo">查看商品詳細資訊</b><b id="updatestatus">刷新商品交易狀態</b>
+                        <hr>
+                        <h1 id="productName">商品名稱: </h1>
+                        <h1 id="productPrice">商品價格: </h1>
+                        <h1 id="sellerID" style="color: red;">賣家遊戲ID: </h1>
+                        <b id="buy">購買此商品</b>
+                        <b id="buyerID">查看買家ID</b>
+                        <hr>
+                        <b id="successtradeButton">移交商品</b>
+                        <b id="withdrawButton">領收</b>
+                        <b id="refundButton">申請取消交易</b>
+                        <h3 id="tradeStatus" style="color: red">交易狀態:</h3>
+                    </div>
+                </center>
+            </div>
 
-            <hr>
-            <h3>商品列表</h3>
 
-            <select id="allproducts"></select>
-            <button id="selectinfo">查看商品詳細資訊</button>
-            <button id="updatestatus">刷新商品交易狀態</button>
-            <h5 id="productName">商品名稱: </h5>
-            <h5 id="productPrice">商品價格: </h5>
-            <h5 id="sellerID" style="color: red;">賣家遊戲ID: </h5>
-            <button id="buy">購買此商品</button>
-
-            <button id="buyerID">查看買家ID</button>
-            <h3 id="tradeStatus" style="color: red">交易狀態:</h3>
-            <hr>
-            <button id="successtradeButton">移交商品</button>
-            <button id="withdrawButton">領收</button>
-            <button id="refundButton">申請取消交易</button>
 
         </div>
-        <div class="item" style="width:500px;">
-            <h3>交易平台</h3>
-            <pre id="logger"></pre>
-        </div>
-    </div>
+        <div class="flex">
 
-    <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js'></script>
-    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
-    <script src="javascripts/index.js"></script>
+            <div style="width:500px;">
+                <h3>交易平台</h3>
+                <pre id="logger"></pre>
+            </div>
+        </div>
+
+        <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js'></script>
+        <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+        <script src="javascripts/index.js"></script>
+
 </body>
+
+
+
 
 </html>

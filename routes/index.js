@@ -3,11 +3,18 @@ const router = express.Router();
 const Provider = require('@truffle/hdwallet-provider');
 var Web3 = require('web3');
 const infuraURL = 'https://ropsten.infura.io/v3/76b5cbba7f2946218de13d39cd617659';
+var identityKey = 'skey';
+var session = require('express-session');
+var FileStore = require('session-file-store')(session);
+var users = require('./users').items;
+console.log(users);
 
 
 var web3 = new Web3(infuraURL);
 var privateKey = '';
 var provider;
+
+
 
 web3.eth.net.getId().then(console.log);
 
@@ -27,25 +34,127 @@ var Personal = require('web3-eth-personal');
 var personal = new Personal(Personal.givenProvider);
 
 
-const request = require('request')
-const cheerio = require('cheerio')
-const url = 'https://coinmarketcap.com/'
-const urlcondition = 'tr.cmc-table-row td.cmc-table__cell.cmc-table__cell--sortable.cmc-table__cell--right.cmc-table__cell--sort-by__price'
-
 
 
 
 /* GET home page. */
 router.get('/', async function (req, res, next) {
-	res.render('index')
+	
+	res.render('index');
+	
+});
+//åˆå§‹session
+router.use(session({
+
+		name: identityKey,
+		secret: 'ethproject',
+		store: new FileStore(),
+		saveUninitialized: false,
+		resave: false,
+	cookie: {
+			maxAge: 600 * 1000
+		}
+
+}));
+
+//ç™»å…¥
+router.post('/login', async function (req, res) {
+
+	var user = findUser(req.body.name, req.body.privatekey);
+	
+	if (user) {
+		req.session.name = user.name;
+		req.session.privatekey = user.privatekey;
+
+	}
+		
+	
+	setKeytoWeb3(req.body.privatekey);
+	
+	res.send({
+		privatekey: req.body.name
+	})
+	
+	
+	
 });
 
-function setKey(key) {
-	privateKey = key;
-	console.log(privateKey)
-	provider = new Provider(privateKey, infuraURL);
-	web3 = new Web3(provider);
+//ç™»å‡º
+router.get('/logout', async function (req, res) {
+	var isLogined2 = !!req.session.name;
+	if (isLogined2) {
+		req.session.destroy(function (err) {
+			if (err) {
+				return;
+			}
+			res.clearCookie(identityKey);
+		})
+	}
+	
+})
 
+
+
+
+
+// sessionä¸­getAccount
+
+function loadSession() {
+	router.get('/getSessionAccount', async function (req, res, next) {
+		var sess = req.session;
+		var loginUser = sess.name;
+		var loginPass = sess.privatekey;
+
+		var isLogined = !!loginUser;
+		if (isLogined) {
+
+			provider = new Provider(loginPass, infuraURL);
+			web3 = new Web3(provider);
+			web3.eth.net.getId().then(console.log);
+			web3.eth.net.isListening().then((s) => {
+				console.log('True');
+			}).catch((e) => {
+				console.log('False');
+			})
+
+			res.send({
+				nowAcc: loginUser,
+				
+			})
+		
+		}
+		
+		
+	});
+
+
+}
+
+
+
+var findUser = function (name, privatekey) {
+	return users.find(function (item) {
+		return item.name === name && item.privatekey === privatekey;
+	});
+};
+
+
+
+function setKeytoWeb3(key) {
+	provider = new Provider(key, infuraURL);
+	//web3 = new Web3(provider);
+	web3.setProvider(provider);
+
+	web3.eth.net.getId().then(console.log);
+	web3.eth.net.isListening().then((s) => {
+		console.log('Success');
+	}).catch((e) => {
+		console.log('False');
+	})
+}
+
+function resetWeb3() {
+	web3.setProvider(infuraURL);
 	web3.eth.net.getId().then(console.log);
 	web3.eth.net.isListening().then((s) => {
 		console.log('True');
@@ -54,22 +163,8 @@ function setKey(key) {
 	})
 }
 
-router.post('/login', async function (req, res, next) {
-	k = req.body.privatekey;
-	setKey(k);
-	res.send({
-		privatekey: k
-	})
-});
 
 
-//login
-router.get('/balance', async function (req, res, next) {
-	let ethBalance = await web3.eth.getBalance(req.query.account)
-	res.send({
-		ethBalance: web3.utils.fromWei(ethBalance, 'ether')
-	})
-});
 
 router.post('/unlock', function (req, res, next) {
 
@@ -81,51 +176,67 @@ router.post('/unlock', function (req, res, next) {
 			res.send('false')
 		})
 });
+
 //balance
 router.get('/allBalance', async function (req, res, next) {
+	
 	let bank = new web3.eth.Contract(contract.abi);
 	let erc20 = new web3.eth.Contract(tokenContract.abi);
 	bank.options.address = req.query.address;
 	erc20.options.address = req.query.erc20Address;
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.query.account = req.session.name;
 
-	let ethBalance = await web3.eth.getBalance(req.query.account)
-	let accountTokenBalance = await erc20.methods.balanceOf(req.query.account).call()
-	let tokenBalance = await bank.methods.getBalance().call({from: req.query.account })
+		let ethBalance = await web3.eth.getBalance(req.query.account)
+		let accountTokenBalance = await erc20.methods.balanceOf(req.query.account).call()
+		let tokenBalance = await bank.methods.getBalance().call({ from: req.query.account })
 
-
-	res.send({
-		ethBalance: web3.utils.fromWei(ethBalance, 'ether'),
-		accountTokenBalance: web3.utils.fromWei(accountTokenBalance, 'ether'),
-		tokenBalance: web3.utils.fromWei(tokenBalance, 'ether')
-	})
-});
+		res.send({
+			ethBalance: web3.utils.fromWei(ethBalance, 'ether'),
+			accountTokenBalance: web3.utils.fromWei(accountTokenBalance, 'ether'),
+			tokenBalance: web3.utils.fromWei(tokenBalance, 'ether')
+		})
+	resetWeb3();
+	}
+	else {
+		res.send({ login: 1 })
+	}
+	});
 
 
 
 router.post('/uploadProduct', async function (req, res, next) {
-	let bank = new web3.eth.Contract(contract.abi);
-	bank.options.address = req.body.address;
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.body.account = req.session.name;
+		let bank = new web3.eth.Contract(contract.abi);
+		bank.options.address = req.body.address;
 
-
-	let productnum = await bank.methods.currentProductNum().call();
-	productnum = parseInt(productnum, 10) + 1;
-	uploadproduct = await bank.methods.uploadProduct(req.body.info,req.body.name,req.body.ID, web3.utils.toWei(req.body.price, 'ether')).send({
-		from: req.body.account,
-		gas: 3400000
-	})
-		.on('receipt', function (receipt) {
-			console.log(receipt)
-			res.send({
-				
-				receipt: receipt,
-				productnum: productnum
-
-			});
-
+		let productnum = await bank.methods.currentProductNum().call();
+		productnum = parseInt(productnum, 10) + 1;
+		uploadproduct = await bank.methods.uploadProduct(req.body.info, req.body.name, req.body.ID, web3.utils.toWei(req.body.price, 'ether')).send({
+			from: req.body.account,
+			gas: 3400000
 		})
-		.on('error', function (error) {
-			res.send(error.toString());
-		})
+			.on('receipt', function (receipt) {
+				console.log(receipt)
+				res.send({
+
+					receipt: receipt,
+					productnum: productnum
+
+				});
+
+			})
+			.on('error', function (error) {
+				res.send(error.toString());
+			})
+		
+	}
+	else {
+		res.send({ login: 1 })
+	} 
 });
 router.get('/currentProductNum', async function (req, res, next) {
 	let bank = new web3.eth.Contract(contract.abi);
@@ -161,14 +272,14 @@ router.get('/selectinfo', async function (req, res, next) {
 	
 	
 	let prod_price = await bank.methods.getProductPrice(req.query.nowProduct).call()
-	let prod_name = await bank.methods.getProductName(req.query.nowProduct).call()
+	let prod_info = await bank.methods.getProductInfo(req.query.nowProduct).call()
 	let sellerID = await bank.methods.getSellerID(req.query.nowProduct).call()
 	let status = await bank.methods.getTradeStatus(req.query.nowProduct).call()
 
 	res.send({
 		status: status,
 		prod_price: web3.utils.fromWei(prod_price, 'ether'),
-		prod_name: prod_name,
+		prod_info: prod_info,
 		sellerID: sellerID
 	})
 
@@ -187,38 +298,46 @@ router.get('/status', async function (req, res, next) {
 	})
 });
 
-//³]©w¥æ©öª¬ºA
+//è¨­å®šäº¤æ˜“ç‹€æ…‹
 router.post('/setTradeStatus', async function (req, res, next) {
 	let bank = new web3.eth.Contract(contract.abi);
 	bank.options.address = req.body.address;
-
-	let setVal=bank.methods.setTradeStatus(req.body.nowProduct, req.body.setValue).send({
-		from: req.body.account,
-		gas: 3400000
-	})
-		.on('receipt', function (receipt) {
-			res.send(receipt);
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.body.account = req.session.name;
+		let setVal = bank.methods.setTradeStatus(req.body.nowProduct, req.body.setValue).send({
+			from: req.body.account,
+			gas: 3400000
 		})
-		.on('error', function (error) {
-			res.send(error.toString());
-		})
-
+			
+	}
+	else {
+		res.send({ login: 1 })
+	}
 });
 
 router.post('/setBuyerID', async function (req, res, next) {
 	let bank = new web3.eth.Contract(contract.abi);
 	bank.options.address = req.body.address;
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.body.account = req.session.name;
 
-	let setBuyID = bank.methods.setBuyerID(req.body.nowProduct, req.body.buyerid).send({
-		from: req.body.account,
-		gas: 3400000
-	})
-		.on('receipt', function (receipt) {
-			res.send(receipt);
+		let setBuyID = bank.methods.setBuyerID(req.body.nowProduct, req.body.buyerid).send({
+			from: req.body.account,
+			gas: 3400000
 		})
-		.on('error', function (error) {
-			res.send(error.toString());
-		})
+			.on('receipt', function (receipt) {
+				res.send(receipt);
+			})
+			.on('error', function (error) {
+				res.send(error.toString());
+			})
+
+	}
+	else {
+		res.send({ login: 1 })
+	}
 
 });
 
@@ -227,18 +346,23 @@ router.get('/getBuyerId', async function (req, res, next) {
 	let bank = new web3.eth.Contract(contract.abi);
 	bank.options.address = req.query.address;
 	let flag = 0;
-	
-	let seller = await bank.methods.returnSellerAddress(req.query.nowProduct).call()
-	let buyerID = await bank.methods.getBuyerID(req.query.nowProduct).call()
-	if (req.query.account == seller) {
-		flag = 1;
+	if (!!req.session.name) {
+		req.query.account = req.session.name;
+		let seller = await bank.methods.returnSellerAddress(req.query.nowProduct).call()
+		let buyerID = await bank.methods.getBuyerID(req.query.nowProduct).call()
+		if (req.query.account == seller) {
+			flag = 1;
+		}
+		res.send({
+			seller: seller,
+			account: req.query.account,
+			buyerID: buyerID,
+			flag: flag
+		})
 	}
-	res.send({
-		seller: seller,
-		account:req.query.account,
-		buyerID: buyerID,
-		flag:flag
-	})
+	else {
+		res.send({ login: 1 })
+	}
 });
 
 
@@ -248,31 +372,38 @@ router.post('/buy', async function (req, res, next) {
 	let erc20 = new web3.eth.Contract(tokenContract.abi);
 	bank.options.address = req.body.address;
 	erc20.options.address = req.body.erc20Address;
-
-
 	let value = await bank.methods.getProductPrice(req.body.nowProduct).call();
-	
-	erc20.methods.approve(bank.options.address, web3.utils.toWei(value, 'ether')).send({
-		from: req.body.account,
-		gas: 340000
-	})
-	.on('receipt', function (receipt) {
-		res.send(receipt);
-	})
-	.on('error', function (error) {
-		res.send(error.toString());
-	})
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.body.account = req.session.name;
 
-	bank.methods.Pay(req.body.nowProduct).send({
-		from: req.body.account,
-		gas: 340000
-	})
-	.on('receipt', function (receipt) {
-			res.send(receipt);
+		erc20.methods.approve(bank.options.address, web3.utils.toWei(value, 'ether')).send({
+			from: req.body.account,
+			gas: 340000
 		})
-	.on('error', function (error) {
-			res.send(error.toString());
-	})
+			.on('receipt', function (receipt) {
+				res.send(receipt);
+			})
+			.on('error', function (error) {
+				res.send(error.toString());
+			})
+
+		bank.methods.Pay(req.body.nowProduct).send({
+			from: req.body.account,
+			gas: 340000
+		})
+			.on('receipt', function (receipt) {
+				res.send(receipt);
+			})
+			.on('error', function (error) {
+				res.send(error.toString());
+			})
+
+	}
+	else {
+		res.send({ login: 1 })
+	}
+	
 });
 
 router.get('/successtrade', async function (req, res, next) {
@@ -280,16 +411,24 @@ router.get('/successtrade', async function (req, res, next) {
 	let erc20 = new web3.eth.Contract(tokenContract.abi);
 	bank.options.address = req.query.address;
 	erc20.options.address = req.query.erc20Address;
-	let add1 = await bank.methods.returnSellerAddress(req.query.nowProduct).call()
-	if (req.query.account != add1) {
-		b1 = 0;
+
+
+	if (!!req.session.name) {
+		req.query.account = req.session.name;
+		let add1 = await bank.methods.returnSellerAddress(req.query.nowProduct).call()
+		if (req.query.account != add1) {
+			b1 = 0;
+		}
+		else { b1 = 1; }
+		res.send({
+			b1: b1,
+			add: add1,
+			acc: req.query.account
+		})
 	}
-	else { b1 = 1;}
-	res.send({
-		b1: b1,
-		add: add1,
-		acc: req.query.account
-	})
+	else {
+		res.send({ login: 1 })
+	}
 });
 
 
@@ -301,28 +440,37 @@ router.post('/withdraw', async function (req, res, next) {
 	bank.options.address = req.body.address;
 	let value = bank.methods.getProductPrice(req.body.nowProduct).call();
 	let add2 = await bank.methods.returnBuyerAddress(req.body.nowProduct).call()
-	if (req.body.account != add2) {
-		b2 = 0;
+
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.body.account = req.session.name;
+
+		if (req.body.account != add2) {
+			b2 = 0;
+		}
+		else {
+			b2 = 1;
+			bank.methods.successTrade(req.body.nowProduct).send({
+				from: req.body.account,
+				gas: 3400000
+			})
+				.on('receipt', function (receipt) {
+					res.send(receipt);
+				})
+				.on('error', function (error) {
+					res.send(error.toString());
+				})
+		}
+		res.send({
+			b2: b2,
+			add: add2,
+			acc: req.body.account
+		})
+		
 	}
 	else {
-	b2 = 1;
-	bank.methods.successTrade(req.body.nowProduct).send({
-		from: req.body.account,
-		gas: 3400000
-	})
-		.on('receipt', function (receipt) {
-			res.send(receipt);
-		})
-		.on('error', function (error) {
-			res.send(error.toString());
-		})
+		res.send({ login: 1 })
 	}
-	res.send({
-		b2: b2,
-		add: add2,
-		acc: req.body.account
-	})
-
 
 });
 
@@ -333,28 +481,37 @@ router.post('/refund', async function (req, res, next) {
 	bank.options.address = req.body.address;
 	let value = bank.methods.getProductPrice(req.body.nowProduct).call();
 	let add3 = await bank.methods.returnBuyerAddress(req.body.nowProduct).call()
-	if (req.body.account != add3) {
-		b3 = 0;
+	if (!!req.session.name) {
+		setKeytoWeb3(req.session.privatekey);
+		req.body.account = req.session.name;
+
+		if (req.body.account != add3) {
+			b3 = 0;
+		}
+		else {
+			b3 = 1;
+
+			bank.methods.failTrade(req.body.nowProduct).send({
+				from: req.body.account,
+				gas: 3400000
+			})
+				.on('receipt', function (receipt) {
+					res.send(receipt);
+				})
+				.on('error', function (error) {
+					res.send(error.toString());
+				})
+		}
+		res.send({
+			b3: b3,
+			add: add3,
+			acc: req.body.account
+		})
+		resetWeb3();
 	}
 	else {
-		b3 = 1;
-
-		bank.methods.failTrade(req.body.nowProduct).send({
-			from: req.body.account,
-			gas: 3400000
-		})
-			.on('receipt', function (receipt) {
-				res.send(receipt);
-			})
-			.on('error', function (error) {
-				res.send(error.toString());
-			})
+		res.send({ login: 1 })
 	}
-	res.send({
-		b3: b3,
-		add: add3,
-		acc: req.body.account
-	})
 });
 
 

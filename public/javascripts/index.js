@@ -1,29 +1,14 @@
 'use strict'
 
 
-
-
 let contractAddress = $('#contractAddress');
-let deployedContractAddressInput = $('#deployedContractAddressInput');
-let loadDeployedContractButton = $('#loadDeployedContractButton');
-let deployNewContractButton = $('#deployNewContractButton');
-
-let killContractButton = $('#killContractButton');
-
 let loginaccount = $('#loginaccount');
 let loginpassword = $('#loginpassword');
 let login = $('#login');
-let copyButton = $('#copyButton');
-
+let logout = $('#logout');
 let update = $('#update');
-
 let logger = $('#logger');
-
-let lend = $('#lend');
-let lendButton = $('#lendButton');
-
 let withdrawButton = $('#withdrawButton');
-
 let refundButton = $('#refundButton');
 
 let insertproductName = $('#insertproductName');
@@ -40,14 +25,17 @@ let productName = $('#productName');
 let productPrice = $('#productPrice');
 let sellerID = $('#sellerID');
 let updatestatus = $('#updatestatus');
+let mainpage = $('#mainpage');
+let loginpage = $('#loginpage');
+let uploadpage = $('#uploadpage');
 let successtradeButton = $('#successtradeButton');
+
 let erc20Address = '0xa35408ea2403eE7f923b1Ca7E3d5cB816fC95A62';
-let bankAddress = '0x27FCcF4c66397f8D692d51C3a482756500678C27';
+let bankAddress = '0x6B200b30371a1fd45121eb5608dBec3619572bEb';
 
 
 let nowAccount = "";
 let privatekey = "";
-
 let name = "";
 let info = "";
 let price = "";
@@ -59,7 +47,7 @@ var i = 0;
 let save_status = [];
 var option_val = '0';
 var option_val2 = '0';
-
+var close_flag = 0;
 
 
 function log(...inputs) {
@@ -77,51 +65,130 @@ function log(...inputs) {
 
 login.on('click', async function () {
 
-	nowAccount = loginaccount.val();
-	privatekey = loginpassword.val();
 	$.post('/login', {
+		name:loginaccount.val(),
 		privatekey: loginpassword.val()
 	}, function (result) {
-			log(result.privatekey, '密鑰')
+		    //update.trigger('click')
+			log(result.privatekey, 'pk')
 	})
-	//unlockAccount();
-	update.trigger('click')
+	
+	window.location.href = "index.html";
+
+
+	//$.get('/getSessionAccount', {
+	//})
+
 
 })
 
 
+logout.on('click', async function () {
+
+	$.get('/logout', {
+	}, function (result) {
+		alert('您已登出,將重新導向首頁');
+
+	})
+
+	//window.location.href = "index.html";
+})
+
+
+
+//首頁按鍵
+mainpage.on('click', async function () {
+	
+	window.location.href = "index.html";
+	
+})
+
+//我要上架商品
+uploadpage.on('click', async function () {
+	close_flag = 1;
+	window.location.href = "./uploadpage.html";
+})
+
+// 我要登入按鍵
+loginpage.on('click', async function () {
+	
+	window.location.href = "./loginpage.html";
+})
+
+//當開啟首頁
+window.onload = function () {
+	
+	if (window.location.pathname == "/index.html") {
+		/*$.get('/getSessionAccount', {
+		}, function (result) {
+				if (result.nowAcc != "") {
+					$('#nowAcc').text('現在登入帳號： ' + result.nowAcc)
+				}
+		})*/
+
+		$.get('/currentProductNum', {
+			address: bankAddress
+		}, function (result) {
+			option_val = result.productnum;
+			log({
+				productnum: result.productnum,
+				option_val: option_val
+			})
+
+		})
+
+
+
+		$.get('/products', {
+			//info: "",
+			address: bankAddress,
+		},
+
+			function (products) {
+				option_val = '0';
+				for (let product of products) {
+					option_val++;
+					allproducts.append(`<option value = "${option_val}">${product}</option>`)
+					log(option_val, '編號')
+				}
+
+			})
+
+	}
+};
+
+//當關閉首頁
+window.onunload = function () {
+	
+
+}
+
+
+
+
+
 // 當按下更新按鍵時
-// TODO: update coin balance
 update.on('click', function () {
 	if (bankAddress != "") {
 		$.get('/allBalance', {
 			address: bankAddress,
 			erc20Address: erc20Address,
-			account: nowAccount
 		}, function (result) {
-			log({
-				address: nowAccount,
-				ethBalance: result.ethBalance,
-				//accountTokenBalance: result.accountTokenBalance,
-				tokenBalance: result.tokenBalance
+			if (result.login == 1) {
+				window.location.href = "./loginpage.html"
+			}
+			else {
+				log({
 
-			})
-			log('更新帳戶資料')
+					ethBalance: result.ethBalance,
+					tokenBalance: result.tokenBalance
+				})
+				log('更新帳戶資料')
 
-			$('#ethBalance').text('以太帳戶餘額 (ETH): ' + result.ethBalance)
-			$('#accountTokenBalance').text('Token帳戶餘額： ' + result.accountTokenBalance)
-			$('#tokenBalance').text('合約Token 餘額: ' + result.tokenBalance)
+				$('#ethBalance').text('以太帳戶餘額 (ETH): ' + result.ethBalance)
+				$('#accountTokenBalance').text('Token帳戶餘額： ' + result.accountTokenBalance)
 
-		})
-	}
-	else {
-		$.get('/balance', {
-			account: nowAccount
-		}, function (result) {
-			$('#ethBalance').text('以太帳戶餘額 (ETH): ' + result.ethBalance)
-			//$('#accountTokenBalance').text('Token帳戶餘額： ')
-			$('#tokenBalance').text('合約Token 餘額: ')
-
+			}
 		})
 	}
 })
@@ -132,25 +199,24 @@ upload.on('click', function () {
 		$.post('/uploadProduct', {
 			address: bankAddress,
 			erc20Address: erc20Address,
-			account: nowAccount,
 			info: insertproductInfo.val(),
 			name: insertproductName.val(),
 			price: parseInt(insertPrice.val(), 10),
 			ID: insertID.val()
 		}, function (result) {
-			log(
-				{
-					address: nowAccount,
-					productnum: result.productnum,
-
-				})
+				if (result.login == 1) {
+					window.location.href = "./loginpage.html"
+				}
+				else {
 				alert('上架成功,您的商品編號是' + result.productnum)
-				location.reload(true);
+					window.location.href = "index.html";
+				}
 		})
 		
 
-
+	
 	}
+	
 })
 
 
@@ -160,22 +226,12 @@ selectinfo.on('click', function () {
 		$.get('/selectinfo', {
 			address: bankAddress,
 			erc20Address: erc20Address,
-			account: nowAccount,
 			nowProduct: parseInt(allproducts.val(),10)
 		}, function (result) {
-
-			log({
-				prod_name: result.prod_name,
-				prod_price: result.prod_price,
-				sellerID: result.sellerID,
-				status:result.status
-			})
-			log('商品資料')
 				tradeStatus(result.status)
-				$('#productName').text('商品名稱: ' + result.prod_name)
 				$('#productPrice').text('商品價格: ' + result.prod_price)
 				$('#sellerID').text('賣家遊戲ID: ' + result.sellerID)
-
+				$('#productName').text('商品資訊: ' + result.prod_info)
 		})
 	}
 })
@@ -185,32 +241,10 @@ selectinfo.on('click', function () {
 	
 
 
-$.get('/products', {
-	//info: "",
-	address: bankAddress,
-},
-
-	function (products) {
-		option_val = '0';
-		for (let product of products) {
-			option_val++;
-			allproducts.append(`<option value = "${option_val}">${product}</option>`)
-            log(option_val,'編號')
-		}
-
-	})
 
 
-$.get('/currentProductNum', {
-	address: bankAddress
-}, function (result) {
-		option_val = result.productnum;
-		log({
-			productnum: result.productnum,
-			option_val: option_val
-			})
 
-})
+
 
 
 updatestatus.on('click', function () {
@@ -219,10 +253,6 @@ updatestatus.on('click', function () {
 		nowProduct: parseInt(allproducts.val(), 10)
 	}, function (result) {
 		tradeStatus(result.status)
-	log({
-		status: result.status
-	})
-
 	})
 })
 
@@ -240,17 +270,17 @@ function doneTransactionStatus() {
 function setTradeStatus(inp1,inp2) {
 	$.post('/setTradeStatus', {
 		address: bankAddress,
-		account: nowAccount,
 		erc20Address: erc20Address,
 		nowProduct: parseInt(inp1, 10),
 		setValue: parseInt(inp2, 10)
 	}, function (result) {
-		update.trigger('click');
-		// 更新介面
-		doneTransactionStatus();
+			if (result.login == 1) {
+				window.location.href = "./loginpage.html"
+			}
+			else {
+				update.trigger('click');
+			}
 	})
-	
-	
 }
 function tradeStatus(inp) {
 	if (inp == 1) {
@@ -279,7 +309,6 @@ function distributeERC20(erc20Address) {
 		console.log(erc20Address);
 	})
 }
-//distributeERC20(erc20Address);
 
 async function unlockAccount() {
 	let password = prompt("請輸入你的密碼", "");
@@ -288,7 +317,6 @@ async function unlockAccount() {
 	}
 	else {
 		return $.post('/unlock', {
-			account: nowAccount,
 			password: password
 		})
 			.then(function (result) {
@@ -303,6 +331,7 @@ async function unlockAccount() {
 	}
 }
 
+//下單後賣家查看買家遊戲ID
 buyerID.on('click', async function () {
 	$.get('/status', {
 		address: bankAddress,
@@ -330,11 +359,7 @@ buyerID.on('click', async function () {
 
 buy.on('click', async function () {
 
-	if (bankAddress == "") {
-		return;
-	}
-
-	// 更新介面
+	//確認商品可被下單
 	$.get('/status', {
 		address: bankAddress,
 		nowProduct: parseInt(allproducts.val(), 10)
@@ -349,22 +374,26 @@ buy.on('click', async function () {
 				$.post('/buy', {
 					address: bankAddress,
 					erc20Address: erc20Address,
-					account: nowAccount,
 					nowProduct: parseInt(allproducts.val(), 10)
 				}, function (result) {
-			
-					updatestatus.trigger('click')
-					doneTransactionStatus()
+					if (result.login == 1) {
+						window.location.href = "./loginpage.html"
+					}
+					else {
 					update.trigger('click')
+					// 完成下單 買家輸入ID
+					let buyerid = prompt('請輸入您的遊戲ID: ', '在此輸入ID');
+					$.post('/setBuyerID', {
+						address: bankAddress,
+						erc20Address: erc20Address,
+						nowProduct: parseInt(allproducts.val(), 10),
+						buyerid: buyerid
+					})
+
+
+					}
 				})
-				let buyerid = prompt('請輸入您的遊戲ID: ', '在此輸入ID');
-				$.post('/setBuyerID', {
-					address: bankAddress,
-					erc20Address: erc20Address,
-					account: nowAccount,
-					nowProduct: parseInt(allproducts.val(), 10),
-					buyerid: buyerid
-				})
+				
 
 			}
 	})
@@ -381,35 +410,39 @@ successtradeButton.on('click', async function () {
 		address: bankAddress,
 		nowProduct: parseInt(allproducts.val(), 10)
 	}, function (result) {
-		if (result.status != 1) {
-			$('#tradeStatus').html('交易狀態: 此商品尚未被下單')
-			return;
-		}
-	})
-
-	$.get('/successtrade', {
-		address: bankAddress,
-		erc20Address: erc20Address,
-		account: nowAccount,
-		nowProduct: parseInt(allproducts.val(), 10)
-	}, function (result) {
-
-		log(result, '移交狀態')
-
-		if (result.b1 == 1) {
-			var sure = confirm('您確定已移交商品並願意負起法律責任嗎?');
-			if (sure) {
-				alert('您已移交商品,請通知買家領收');
-				setTradeStatus(parseInt(allproducts.val(), 10), parseInt('2', 10))
-				updatestatus.trigger('click')
+			if (result.status != 1) {
+				$('#tradeStatus').html('交易狀態: 此商品尚未被下單')
+				return;
 			}
 			else {
-				alert('取消');
+				$.get('/successtrade', {
+					address: bankAddress,
+					erc20Address: erc20Address,
+					nowProduct: parseInt(allproducts.val(), 10)
+				}, function (result) {
+						if (result.login == 1) {
+							window.location.href = "./loginpage.html"
+						}
+						else {
+							if (result.b1 == 1) {
+								var sure = confirm('您確定已移交商品並願意負起法律責任嗎?');
+								if (sure) {
+									alert('您已移交商品,請通知買家領收');
+									setTradeStatus(parseInt(allproducts.val(), 10), parseInt('2', 10))
+									updatestatus.trigger('click')
+								}
+								else {
+									alert('取消');
+								}
+							}
+							else { alert('您不是此商品賣家'); }
+						}
+				})
 			}
-		}
-		else { alert('您不是此商品賣家'); }
+				
+		})
 	})
-})
+
 
 
 
@@ -422,37 +455,38 @@ withdrawButton.on('click', async function () {
 		address: bankAddress,
 		nowProduct: parseInt(allproducts.val(), 10)
 	}, function (result) {
-		if (result.status != 3) {
-			$('#tradeStatus').html('交易狀態: 賣家尚未移交商品')
-			return;
-		}
-	})
-
-	// 更新介面
-	waitTransactionStatus()
-	// 提款
-	$.post('/withdraw', {
-		address: bankAddress,
-		account: nowAccount,
-		nowProduct: parseInt(allproducts.val(), 10)
-	}, function (result) {
-			if (result.b2 == 1) {
-				var sure = confirm('您確定已收到商品?領收後款項即支付給賣家');
-				if (sure) {
-					alert('您已完成領收,系統即將支付款項予賣家');
-					updatestatus.trigger('click')
-					// 觸發更新帳戶資料
-					update.trigger('click')
-					// 更新介面 
-					doneTransactionStatus()
-				}
-				else {
-					alert('取消');
-				}
+			if (result.status != 2) {
+				$('#tradeStatus').html('交易狀態: 賣家尚未移交商品')
+				return;
 			}
-			else { alert('您不是此商品買家');}
+			else {
+				waitTransactionStatus()
+				// 提款
+				$.post('/withdraw', {
+					address: bankAddress,
+					nowProduct: parseInt(allproducts.val(), 10)
+				}, function (result) {
+					if (result.login == 1) {
+						window.location.href = "./loginpage.html"
+					}
+					else {
+						if (result.b2 == 1) {
+							var sure = confirm('您確定已收到商品?領收後款項即支付給賣家');
+							if (sure) {
+								alert('您已完成領收,系統即將支付款項予賣家');
+								updatestatus.trigger('click')
+							}
+							else {
+								alert('取消');
+							}
+						}
+						else { alert('您不是此商品買家'); }
+					}
+				})
 
-	})
+			}
+		
+	})	
 })
 
 
@@ -467,9 +501,9 @@ refundButton.on('click', function () {
 	// 提款
 	$.post('/refund', {
 		address: bankAddress,
-		account: nowAccount,
 		nowProduct: parseInt(allproducts.val(), 10)
 	}, function (result) {
+
 			if (result.b3 == 1) {
 				var sure = confirm('您確定要取消交易並申請退款,且負起法律責任嗎?');
 				if (sure) {
